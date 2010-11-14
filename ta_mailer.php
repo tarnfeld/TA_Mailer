@@ -2,10 +2,10 @@
 
 /*
 *
-*	TA_Mailer - Taking the stress out of templated emails
+*	TA_Mailer - PHP Email Class
 *	(c) 2010  - Don't steal my code!
 *
-*	URL: tarnfeld.com
+*	Created By: Tom Arnfeld (tarnfeld.com)
 *
 */
 
@@ -14,209 +14,110 @@ class TA_Mailer
 
 	/**
 	*
-	*	Public instance vars
-	*
-	*	@scope public
+	*	Class Properties : Array
 	*
 	**/
-	public $_repipients = array();
-	public $_cc = array();
-	public $_bcc = array();
-	
-	public $_from = array();
-	public $_replyto;
-	
-	public $_subject;
-
-	/**
-	*
-	*	Protected instance vars
-	*
-	*	@scope protected
-	*
-	**/
-	protected $_data = array();
-	protected $_customHeaders = array();
-	protected $_format = 'html';
+	private $_to				=	array();	// [ Email, Email, Email, etc ]
+	private $_cc				=	array();	// [ Email, Email, Email, etc ]
+	private $_bcc				=	array();	// [ Email, Email, Email, etc ]
+	private $_from				=	array();	// [ Email, Name ]
+	private $_replyTo			=	array();	// [ Email, Name ]
+	private $_headers			=	array();	// [ Header, Header, Header, etc ]
+	private $_customHeaders		=	array();	// [ Header, Header, Header, etc ]
+	private $_attachments		=	array();	// { [ Location, Name, Disposition ], [ Location, Name, Disposition ], etc }
 	
 	/**
 	*
-	*	Private instance vars
-	*
-	*	@scope private
+	*	Class Properties : Booleans
 	*
 	**/
-	private $_templateFile = 'default.html';
-	private $_templateDir = 'email_templates';
-	private $_hasBeenSent = false;
+	private $_hasBeenSent		=	false;		// Mailer Status
 	
 	/**
 	*
-	*	Method to set the message format
-	*
-	*	@param string | $format | Format [html, text]
+	*	Class Properties : Strings
 	*
 	**/
-	public function setFormat($format)
-	{
-		$this->_format = $format;
-	}
+	private $_contentType		=	'plain';	// Email Content Type
+	private $_charset			=	'utf-8';	// Email Character Set
+	private $_mimeVersion		=	'1.0';		// Email MIME Version
+	private $_newline			=	'\r\n';		// New Line for Headers
+	protected  $_subject		=	'';			// Email Subject
+	protected  $_body			=	'';			// Email Body
 	
 	/**
 	*
-	*	Method to add a recipient
-	*
-	*	@param string | $email | Email of recipient
+	*	Add a TO recipient
 	*
 	**/
 	public function addTo($email)
 	{
-		$this->_recipients[] = $email;
+		$this->_to[] = $email;
 	}
 	
 	/**
 	*
-	*	Method to add a CC recipient
-	*
-	*	@param string | $name  | Name of recipient
-	*	@param string | $email | Email of recipient
+	*	Add a CC Recipient
 	*
 	**/
-	public function addCc($email, $name = null)
+	public function addCc($email)
 	{
-		$array = array();
-		$array['name'] = $name;
-		$array['email'] = $email;
-		$this->_cc[] = $array;
+		$this->_cc[] = $email;
 	}
 	
 	/**
 	*
-	*	Method to add a BCC recipient
-	*
-	*	@param string | $name  | Name of recipient
-	*	@param string | $email | Email of recipient
+	*	Add a BCC Recipient
 	*
 	**/
-	public function addBcc($email, $name = null)
+	public function addBcc($email)
 	{
-		$array = array();
-		$array['name'] = $name;
-		$array['email'] = $email;
-		$this->_bcc[] = $array;
+		$this->_bcc[] = $email;
 	}
 	
 	/**
 	*
-	*	Method to set from
-	*
-	*	@param string | $name  | Name of from
-	*	@param string | $email | Email of from
+	*	Add a Custom Header
 	*
 	**/
-	public function setFrom($email, $name = null)
-	{
-		$array = array();
-		$array['name'] = $name;
-		$array['email'] = $email;
-		$this->_from = $array;
-	}
-	
-	/**
-	*
-	*	Method to set reply to
-	*
-	*	@param string | $email | Email to reply to
-	*
-	**/
-	public function setReplyTo($email)
-	{
-		$this->_replyto = $email;
-	}
-	
-	/**
-	*
-	*	Method to add your own custom headers
-	*
-	*	@param string | $header | Header you want to add
-	*
-	**/
-	public function setCustomHeaders($header)
+	public function addCustomHeader($header)
 	{
 		$this->_customHeaders[] = $header;
 	}
 	
 	/**
 	*
-	*	Method to set email template dir
-	*
-	*	@param string | $template_dir | Template file directory
-	*	@default application/views/email_templates
-	*	
-	*		-- !!WITHOUT TRAILING SLASH!! --
+	*	Add an Attachment
 	*
 	**/
-	public function setTemplateDirectory($template_dir)
+	public function addAttachment($file_location, $name = false, $disposition = 'attachment')
 	{
-		if(is_dir(dirname(__FILE__) . '/' . $template_dir))
-		{
-			$this->_templateDir = dirname(__FILE__) . '/' . $template_dir;
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Email template directory must exist.');
-		}
+		$this->_attachments[] = array('location' => $file_location, 'name' => $name, 'disposition' => $disposition);
 	}
 	
 	/**
 	*
-	*	Method to set email template file name
-	*
-	*	@param string | $template_file | Template file name to use in "application/views/$this->_templateDir"
+	*	Set the FROM
 	*
 	**/
-	public function setTemplateFile($template_file)
+	public function setFrom($email, $name = false)
 	{
-		if(file_exists($this->_templateDir . '/' . $template_file))
-		{
-			$this->_templateFile = $template_file;
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Email template file must exist.');
-		}
+		$this->_from = array($email, $name);
 	}
 	
 	/**
 	*
-	*	Method to set body data array
-	*
-	*	@param array | $data | Associative array of the data to be replaced in the email template
+	*	Set the REPLY TO
 	*
 	**/
-	public function setData($data)
+	public function setReplyTo($email, $name = false)
 	{
-		$this->_data = $data;
+		$this->_replyTo = array($email, $name);
 	}
 	
 	/**
 	*
-	*	Method to append body data to current data
-	*
-	*	@param string | $key   | Key of data
-	*	@param string | $value | Value of data
-	*
-	**/
-	public function addData($key, $value)
-	{
-		$this->_data[$key] = $value;
-	}
-	
-	/**
-	*
-	*	Method to set the email subject
-	*
-	*	@param string | $subject | Subject for the email
+	*	Set the SUBJECT
 	*
 	**/
 	public function setSubject($subject)
@@ -226,44 +127,24 @@ class TA_Mailer
 	
 	/**
 	*
-	*	Method to prepare the paramaters to send to the sendEmail() method
+	*	Set the BODY
 	*
 	**/
-	public function prepareEmail()
+	public function setBody($body)
 	{
-	
-		// Get email body
-		$body = $this->getBody();
-		
-		// Replace tags
-		$body = $this->replaceTags($body, $this->_data);
-		
-		// Build headers
-		$headers = $this->generateHeaders();
-		
-		// Build Recipients
-		if(count($this->_recipients) > 0)
-		{
-			$recipients = implode(",", $this->_recipients);
-		}
-		
-		return $this->sendEmail($recipients, $this->_subject, $body, $headers);
-		
+		$this->_body = $body;
 	}
 	
 	/**
 	*
-	*	Method to send email
-	*
-	*	Seperating out the mail() command gives you the chance, when extending, to alter the information that is sent to this function by extending the prepairEmail() method above
+	*	Set the email CONTENT TYPE
 	*
 	**/
-	private function sendEmail($recipients, $subject, $body, $headers)
+	public function setContentType($content_type)
 	{
-		$mail = mail($recipients, $subject, $body, $headers);
-		if($mail)
+		if($content_type == 'plain' || $content_type == 'html')
 		{
-			$this->_hasBeenSent = true;
+			$this->_contentType = $content_type;
 			return true;
 		}
 		return false;
@@ -271,97 +152,209 @@ class TA_Mailer
 	
 	/**
 	*
-	*	Method to send
+	*	Set the email CHARSET
+	*
+	**/
+	public function setCharset($charset)
+	{
+		$this->_charset = $charset;
+	}
+	
+	/**
+	*
+	*	Set the email MIME Version
+	*
+	**/
+	public function setMimeVersion($version)
+	{
+		$this->_mimeVersion = $version;
+	}
+	
+	/**
+	*
+	*	Send the email
 	*
 	**/
 	public function send()
 	{
-		return $this->prepareEmail();
+		$this->_buildHeaders();
 	}
 	
 	/**
 	*
-	*	Method to replace tags in email body
-	*
-	*	@param string | $body | Body to replace
-	*	@param string | $tags | Associative array of tags/values to replace
+	*	Send the email
 	*
 	**/
-	private function replaceTags($body, $tags)
+	private function _buildHeaders()
 	{
-		foreach($tags as $tag=>$value)
-		{
-			$body = str_replace('{' . $tag . '}', $value, $body);
-		}
-		return $body;
-	}
-	
-	/**
-	*
-	*	Method to get body
-	*
-	**/
-	private function getBody()
-	{
-		if($body = file_get_contents(dirname(__FILE__) . '/' . $this->_templateDir . '/' . $this->_templateFile))
-		{
-			return $body;
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Could not read email body from template.');
-		}
-	}
-	
-	/**
-	*
-	*	Method to generate headers into a mail() format
-	*
-	**/
-	private function generateHeaders()
-	{
-	
-		$headers = '';
-	
-		// Format
-		if($this->_format == 'html')
-		{
-			$headers .= "MIME-Version: 1.0 \r\n";
-			$headers .= "Content-type:text/html;charset=utf-8 \r\n";
-		}
-	
-		// From
-		if(count($this->_from) == 2)
-		{
-			$headers .= "From: {$this->_from['name']} <{$this->_from['email']}> \r\n";
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Invalid "from" set.');
-		}
 		
-		// Cc
+		// TO Headers
+		if(count($this->_to) > 0)
+		{
+			$this->_headers['To'] = implode(", ", $this->_to);
+		} else { return false; }
+		
+		// CC Headers
 		if(count($this->_cc) > 0)
 		{
-			$cc = implode(",", $this->_cc);
-			$headers .= "Cc: {$cc} \r\n";
+			$this->_headers['Cc'] = implode(", ", $this->_cc);
 		}
 		
-		// Bcc
+		// BCC Headers
 		if(count($this->_bcc) > 0)
 		{
-			$bcc = implode(",", $this->_bcc);
-			$headers .= "Bcc: {$bcc} \r\n";
+			$this->_headers['Bcc'] = implode(", ", $this->_bcc);
 		}
 		
-		// Reply To
-		if(null != $this->_replyto)
+		// FROM Headers
+		if(count($this->_from) == 1)
 		{
-			$headers .= "Reply-To: {$this->_replyto} \r\n";
+			$this->_headers['From'] = $this->_from[0];
+		}
+		elseif(count($this->_from) == 2)
+		{
+			$this->_headers['From'] = $this->_from[0] . ' <' . $this->_from[1] . '>';
+		} else { return false; }
+		
+		// Mime Version
+		$this->_headers['MIME-Version'] = $this->_mimeVersion;
+		
+		// Content Type
+		$this->_headers['Content-type'] = 'text/' . $this->_contentType . ';charset=' . $this->_charset;
+		
+		foreach($this->_customHeaders as $header)
+		{
+			
+			$parts = explode(":", $header);
+			$name = trim($parts[0]);
+			unset($parts[0]);
+			
+			$this->_headers[$name] = implode(":", $parts);
+			
 		}
 		
-		return $headers;
+		// Attachments
+		$attachment_boundry = "B_ATC_" . uniqid('');
+		foreach($this->_attachments as $attachment) {
+			
+			$content_type = '';
+			$attachment_name = $attachment['filename'];
+			if($attachment['name'] != false)
+			{
+				$attachment_name = '';
+			}
+			
+			$content_type = $this->_mime_types(next(explode('.', basename($filename))))
+			
+			$h  = "--" . $attachment_boundry . $this->_newline;
+			$h .= "Content-type: " . $content_type . "; ";
+			$h .= "name=\"" . $attachment_name . "\"" . $this->_newline;
+			$h .= "Content-Disposition: " . $attachment['disposition'] . ";" . $this->_newline;
+			$h .= "Content-Transfer-Encoding: base64" . $this->_newline;
+			
+			$this->_headers[] = $h;
+			
+		}
 		
+	}
+	
+	/**
+	*
+	*	Method to determine the mime type of a file from the extention
+	*
+	**/
+	private function _mime_types($ext = "")
+	{
+		$mimes = array(	'hqx'	=>	'application/mac-binhex40',
+						'cpt'	=>	'application/mac-compactpro',
+						'doc'	=>	'application/msword',
+						'bin'	=>	'application/macbinary',
+						'dms'	=>	'application/octet-stream',
+						'lha'	=>	'application/octet-stream',
+						'lzh'	=>	'application/octet-stream',
+						'exe'	=>	'application/octet-stream',
+						'class'	=>	'application/octet-stream',
+						'psd'	=>	'application/octet-stream',
+						'so'	=>	'application/octet-stream',
+						'sea'	=>	'application/octet-stream',
+						'dll'	=>	'application/octet-stream',
+						'oda'	=>	'application/oda',
+						'pdf'	=>	'application/pdf',
+						'ai'	=>	'application/postscript',
+						'eps'	=>	'application/postscript',
+						'ps'	=>	'application/postscript',
+						'smi'	=>	'application/smil',
+						'smil'	=>	'application/smil',
+						'mif'	=>	'application/vnd.mif',
+						'xls'	=>	'application/vnd.ms-excel',
+						'ppt'	=>	'application/vnd.ms-powerpoint',
+						'wbxml'	=>	'application/vnd.wap.wbxml',
+						'wmlc'	=>	'application/vnd.wap.wmlc',
+						'dcr'	=>	'application/x-director',
+						'dir'	=>	'application/x-director',
+						'dxr'	=>	'application/x-director',
+						'dvi'	=>	'application/x-dvi',
+						'gtar'	=>	'application/x-gtar',
+						'php'	=>	'application/x-httpd-php',
+						'php4'	=>	'application/x-httpd-php',
+						'php3'	=>	'application/x-httpd-php',
+						'phtml'	=>	'application/x-httpd-php',
+						'phps'	=>	'application/x-httpd-php-source',
+						'js'	=>	'application/x-javascript',
+						'swf'	=>	'application/x-shockwave-flash',
+						'sit'	=>	'application/x-stuffit',
+						'tar'	=>	'application/x-tar',
+						'tgz'	=>	'application/x-tar',
+						'xhtml'	=>	'application/xhtml+xml',
+						'xht'	=>	'application/xhtml+xml',
+						'zip'	=>	'application/zip',
+						'mid'	=>	'audio/midi',
+						'midi'	=>	'audio/midi',
+						'mpga'	=>	'audio/mpeg',
+						'mp2'	=>	'audio/mpeg',
+						'mp3'	=>	'audio/mpeg',
+						'aif'	=>	'audio/x-aiff',
+						'aiff'	=>	'audio/x-aiff',
+						'aifc'	=>	'audio/x-aiff',
+						'ram'	=>	'audio/x-pn-realaudio',
+						'rm'	=>	'audio/x-pn-realaudio',
+						'rpm'	=>	'audio/x-pn-realaudio-plugin',
+						'ra'	=>	'audio/x-realaudio',
+						'rv'	=>	'video/vnd.rn-realvideo',
+						'wav'	=>	'audio/x-wav',
+						'bmp'	=>	'image/bmp',
+						'gif'	=>	'image/gif',
+						'jpeg'	=>	'image/jpeg',
+						'jpg'	=>	'image/jpeg',
+						'jpe'	=>	'image/jpeg',
+						'png'	=>	'image/png',
+						'tiff'	=>	'image/tiff',
+						'tif'	=>	'image/tiff',
+						'css'	=>	'text/css',
+						'html'	=>	'text/html',
+						'htm'	=>	'text/html',
+						'shtml'	=>	'text/html',
+						'txt'	=>	'text/plain',
+						'text'	=>	'text/plain',
+						'log'	=>	'text/plain',
+						'rtx'	=>	'text/richtext',
+						'rtf'	=>	'text/rtf',
+						'xml'	=>	'text/xml',
+						'xsl'	=>	'text/xml',
+						'mpeg'	=>	'video/mpeg',
+						'mpg'	=>	'video/mpeg',
+						'mpe'	=>	'video/mpeg',
+						'qt'	=>	'video/quicktime',
+						'mov'	=>	'video/quicktime',
+						'avi'	=>	'video/x-msvideo',
+						'movie'	=>	'video/x-sgi-movie',
+						'doc'	=>	'application/msword',
+						'word'	=>	'application/msword',
+						'xl'	=>	'application/excel',
+						'eml'	=>	'message/rfc822'
+					);
+
+		return ( ! isset($mimes[strtolower($ext)])) ? "application/x-unknown-content-type" : $mimes[strtolower($ext)];
 	}
 
 }
