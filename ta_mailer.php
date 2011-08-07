@@ -9,359 +9,245 @@
 *
 */
 
+define('TA_MAILER_DIR', dirname(__FILE__));
+
+class TA_Mailer_Exception extends Exception { }
+
+class TA_Mailer_Recipient
+{
+	
+	protected $_email	= null;
+	protected $_name	= null;
+	
+	public static function factory($email, $name = null)
+	{
+		$r = new self();
+		$r->setEmail($email);
+		$r->setName($name);
+		
+		return $r;
+	}
+	
+	// Use the factory method please
+	protected function __construct() { }
+	
+	public function setEmail($email)
+	{
+		$this->_email = $email;
+		
+		/* Method Chaining */
+		return $this;
+	}
+	
+	public function setName($name)
+	{
+		$this->_name = $name;
+		
+		/* Method Chaining */
+		return $this;
+	}
+	
+	public function email()
+	{
+		return $this->_email;
+	}
+	
+	public function name()
+	{
+		return $this->_name;
+	}
+}
+
 class TA_Mailer
 {
-
-	/**
-	*
-	*	Public instance vars
-	*
-	*	@scope public
-	*
-	**/
-	public $_repipients = array();
-	public $_cc = array();
-	public $_bcc = array();
 	
-	public $_from = array();
-	public $_replyto;
+	const HTML				= 'html';
+	const PLAINTEXT			= 'text';
 	
-	public $_subject;
-
-	/**
-	*
-	*	Protected instance vars
-	*
-	*	@scope protected
-	*
-	**/
-	protected $_data = array();
-	protected $_customHeaders = array();
-	protected $_format = 'html';
+	protected $_recipients	= array();
+	protected $_cc			= array();
+	protected $_bcc			= array();
 	
-	/**
-	*
-	*	Private instance vars
-	*
-	*	@scope private
-	*
-	**/
-	private $_templateFile = 'default.html';
-	private $_templateDir = 'email_templates';
-	private $_hasBeenSent = false;
+	protected $_subject		= null;
 	
-	/**
-	*
-	*	Method to set the message format
-	*
-	*	@param string | $format | Format [html, text]
-	*
-	**/
-	public function setFormat($format)
+	protected $_from		= null;
+	protected $_reply		= null;
+	
+	protected $_type		= null;
+	
+	protected $_data		= array();
+	protected $_template	= null;
+	protected $_raw			= null;
+	
+	public function __construct(array $options = array())
 	{
-		$this->_format = $format;
+		
 	}
 	
-	/**
-	*
-	*	Method to add a recipient
-	*
-	*	@param string | $email | Email of recipient
-	*
-	**/
-	public function addTo($email)
+	public function addTo(TA_Mailer_Recipient $recipient)
 	{
-		$this->_recipients[] = $email;
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to add a CC recipient
-	*
-	*	@param string | $name  | Name of recipient
-	*	@param string | $email | Email of recipient
-	*
-	**/
-	public function addCc($email, $name = null)
+	public function setTo(array $recipients)
 	{
-		$array = array();
-		$array['name'] = $name;
-		$array['email'] = $email;
-		$this->_cc[] = $array;
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to add a BCC recipient
-	*
-	*	@param string | $name  | Name of recipient
-	*	@param string | $email | Email of recipient
-	*
-	**/
-	public function addBcc($email, $name = null)
+	public function addCc(TA_Mailer_Recipient $recipient)
 	{
-		$array = array();
-		$array['name'] = $name;
-		$array['email'] = $email;
-		$this->_bcc[] = $array;
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to set from
-	*
-	*	@param string | $name  | Name of from
-	*	@param string | $email | Email of from
-	*
-	**/
-	public function setFrom($email, $name = null)
+	public function setCc(array $recipients)
 	{
-		$array = array();
-		$array['name'] = $name;
-		$array['email'] = $email;
-		$this->_from = $array;
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to set reply to
-	*
-	*	@param string | $email | Email to reply to
-	*
-	**/
-	public function setReplyTo($email)
+	public function addBcc(TA_Mailer_Recipient $recipient)
 	{
-		$this->_replyto = $email;
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to add your own custom headers
-	*
-	*	@param string | $header | Header you want to add
-	*
-	**/
-	public function setCustomHeaders($header)
+	public function setBcc(array $recipients)
 	{
-		$this->_customHeaders[] = $header;
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to set email template dir
-	*
-	*	@param string | $template_dir | Template file directory
-	*	@default application/views/email_templates
-	*	
-	*		-- !!WITHOUT TRAILING SLASH!! --
-	*
-	**/
-	public function setTemplateDirectory($template_dir)
+	public function setFrom(TA_Mailer_Recipient $recipient)
 	{
-		if(is_dir(dirname(__FILE__) . '/' . $template_dir))
-		{
-			$this->_templateDir = dirname(__FILE__) . '/' . $template_dir;
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Email template directory must exist.');
-		}
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to set email template file name
-	*
-	*	@param string | $template_file | Template file name to use in "application/views/$this->_templateDir"
-	*
-	**/
-	public function setTemplateFile($template_file)
+	public function setReplyTo(TA_Mailer_Recipient $recipient)
 	{
-		if(file_exists($this->_templateDir . '/' . $template_file))
-		{
-			$this->_templateFile = $template_file;
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Email template file must exist.');
-		}
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to set body data array
-	*
-	*	@param array | $data | Associative array of the data to be replaced in the email template
-	*
-	**/
-	public function setData($data)
-	{
-		$this->_data = $data;
-	}
-	
-	/**
-	*
-	*	Method to append body data to current data
-	*
-	*	@param string | $key   | Key of data
-	*	@param string | $value | Value of data
-	*
-	**/
-	public function addData($key, $value)
-	{
-		$this->_data[$key] = $value;
-	}
-	
-	/**
-	*
-	*	Method to set the email subject
-	*
-	*	@param string | $subject | Subject for the email
-	*
-	**/
 	public function setSubject($subject)
 	{
 		$this->_subject = $subject;
+		
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to prepare the paramaters to send to the sendEmail() method
-	*
-	**/
-	public function prepareEmail()
+	public function setType($type)
 	{
+		$this->_type = $type;
+		
+		/* Method Chaining */
+		return $this;
+	}
 	
-		// Get email body
-		$body = $this->getBody();
+	public function clearRecipients()
+	{
+		$this->_recipients	= array();
+		$this->_cc			= array();
+		$this->_bcc			= array();
 		
-		// Replace tags
-		$body = $this->replaceTags($body, $this->_data);
-		
-		// Build headers
-		$headers = $this->generateHeaders();
-		
-		// Build Recipients
-		if(count($this->_recipients) > 0)
+		/* Method Chaining */
+		return $this;
+	}
+	
+	public function setData(array $data)
+	{
+		/* Method Chaining */
+		return $this;
+	}
+	
+	public function addData($key, $value)
+	{
+		/* Method Chaining */
+		return $this;
+	}
+	
+	public function clearData()
+	{
+		/* Method Chaining */
+		return $this;
+	}
+	
+	public function setTemplate($path)
+	{
+		// Absolute path?
+		if (substr($path, 0, 1) == '/')
 		{
-			$recipients = implode(",", $this->_recipients);
+			if (!file_exists($path))
+			{
+				throw new TA_Mailer_Exception('Could not find template ' . $path);
+			}
+			
+			$this->_template = $path;
+			
+			/* Method Chaining */
+			return $this;
 		}
 		
-		return $this->sendEmail($recipients, $this->_subject, $body, $headers);
-		
-	}
-	
-	/**
-	*
-	*	Method to send email
-	*
-	*	Seperating out the mail() command gives you the chance, when extending, to alter the information that is sent to this function by extending the prepairEmail() method above
-	*
-	**/
-	private function sendEmail($recipients, $subject, $body, $headers)
-	{
-		$mail = mail($recipients, $subject, $body, $headers);
-		if($mail)
+		// We'll assume its relative
+		$path = TA_MAILER_DIR . '/' . $path;
+		if (!file_exists($path))
 		{
-			$this->_hasBeenSent = true;
-			return true;
+			throw new TA_Mailer_Exception('Could not find template ' . $path);
 		}
-		return false;
+		
+		$this->_template = $path;
+		
+		/* Method Chaining */
+		return $this;
 	}
 	
-	/**
-	*
-	*	Method to send
-	*
-	**/
+	public function setRaw($content)
+	{
+		$this->_raw = $content;
+		
+		/* Method Chaining */
+		return $this;
+	}
+	
 	public function send()
 	{
-		return $this->prepareEmail();
+		// Check for at least one recipient
+		if (count($this->_recipients) <= 0)
+		{
+			throw new TM_Mailer_Exception('Cannot send mail, the mailer requires at least one recipient');
+		}
+		
+		// Check for php mail function
+		if (!function_exists('mail'))
+		{
+			throw new TM_Mailer_Exception('PHP mail() function does not exist');
+		}
+		
+		// Prepare the headers and content
+		$headers	= $this->_prepareHeaders();
+		$content	= $this->_prepareContent();
+		$recipients	= $this->_prepareRecipients();
+		
+		// Send the mail
+		return mail($recipients, $this->_subject, $content, $headers);
 	}
 	
-	/**
-	*
-	*	Method to replace tags in email body
-	*
-	*	@param string | $body | Body to replace
-	*	@param string | $tags | Associative array of tags/values to replace
-	*
-	**/
-	private function replaceTags($body, $tags)
+	protected function _prepareHeaders()
 	{
-		foreach($tags as $tag=>$value)
-		{
-			$body = str_replace('{' . $tag . '}', $value, $body);
-		}
-		return $body;
+		
 	}
 	
-	/**
-	*
-	*	Method to get body
-	*
-	**/
-	private function getBody()
+	protected function _prepareContent()
 	{
-		if($body = file_get_contents(dirname(__FILE__) . '/' . $this->_templateDir . '/' . $this->_templateFile))
-		{
-			return $body;
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Could not read email body from template.');
-		}
+		
 	}
 	
-	/**
-	*
-	*	Method to generate headers into a mail() format
-	*
-	**/
-	private function generateHeaders()
+	protected function _prepareRecipients()
 	{
-	
-		$headers = '';
-	
-		// Format
-		if($this->_format == 'html')
-		{
-			$headers .= "MIME-Version: 1.0 \r\n";
-			$headers .= "Content-type:text/html;charset=utf-8 \r\n";
-		}
-	
-		// From
-		if(count($this->_from) == 2)
-		{
-			$headers .= "From: {$this->_from['name']} <{$this->_from['email']}> \r\n";
-		}
-		else
-		{
-			die('<b>Mailer Error: </b><i>' . get_class($this) . '</i> Invalid "from" set.');
-		}
-		
-		// Cc
-		if(count($this->_cc) > 0)
-		{
-			$cc = implode(",", $this->_cc);
-			$headers .= "Cc: {$cc} \r\n";
-		}
-		
-		// Bcc
-		if(count($this->_bcc) > 0)
-		{
-			$bcc = implode(",", $this->_bcc);
-			$headers .= "Bcc: {$bcc} \r\n";
-		}
-		
-		// Reply To
-		if(null != $this->_replyto)
-		{
-			$headers .= "Reply-To: {$this->_replyto} \r\n";
-		}
-		
-		return $headers;
 		
 	}
-
 }
