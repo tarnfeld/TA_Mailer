@@ -2,10 +2,10 @@
 
 /*
 *
-*	TA_Mailer - Taking the stress out of templated emails
+*	TA_Mailer - PHP Email Class
 *	(c) 2010  - Don't steal my code!
 *
-*	URL: tarnfeld.com
+*	Created By: Tom Arnfeld (tarnfeld.com)
 *
 */
 
@@ -248,6 +248,6 @@ class TA_Mailer
 	
 	protected function _prepareRecipients()
 	{
-		
+	
 	}
 }
